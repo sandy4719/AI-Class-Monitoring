@@ -1,0 +1,8 @@
+{
+  "name": "Ghost Classroom AI",
+  "description": "AI-powered classroom automation for attendance, attention tracking, and exam monitoring.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

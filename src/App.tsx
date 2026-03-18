@@ -1,0 +1,177 @@
+import React, { useState, useEffect } from "react";
+import { 
+  LayoutDashboard, 
+  Video, 
+  Users, 
+  FileText, 
+  Settings, 
+  Bell, 
+  ShieldAlert,
+  Ghost
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "./lib/utils";
+import Dashboard from "./components/Dashboard";
+import LiveFeed from "./components/LiveFeed";
+import AttendanceList from "./components/AttendanceList";
+import NotesGenerator from "./components/NotesGenerator";
+
+type Tab = "dashboard" | "live" | "attendance" | "notes" | "settings";
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [alerts, setAlerts] = useState<string[]>([]);
+  const [studentsPresent, setStudentsPresent] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        const res = await fetch("/api/attendance");
+        const data = await res.json();
+        setStudentsPresent(data.map((d: any) => d.name));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchAttendance();
+  }, []);
+
+  const addAlert = (msg: string) => {
+    setAlerts(prev => [msg, ...prev].slice(0, 5));
+  };
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-[#E4E3E0] font-sans selection:bg-[#F27D26] selection:text-black">
+      {/* Sidebar */}
+      <aside className="fixed left-0 top-0 h-full w-64 border-r border-[#141414] bg-[#0A0A0A] z-50">
+        <div className="p-8 flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#F27D26] rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(242,125,38,0.3)]">
+            <Ghost className="text-black w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="font-bold text-base tracking-tight">GHOST</h1>
+            <p className="text-[9px] uppercase tracking-[0.2em] text-[#8E9299]">Classroom AI</p>
+          </div>
+        </div>
+
+        <nav className="mt-8 px-4 space-y-2">
+          <NavItem 
+            icon={<LayoutDashboard size={20} />} 
+            label="Dashboard" 
+            active={activeTab === "dashboard"} 
+            onClick={() => setActiveTab("dashboard")} 
+          />
+          <NavItem 
+            icon={<Video size={20} />} 
+            label="Live Feed" 
+            active={activeTab === "live"} 
+            onClick={() => setActiveTab("live")} 
+          />
+          <NavItem 
+            icon={<Users size={20} />} 
+            label="Attendance" 
+            active={activeTab === "attendance"} 
+            onClick={() => setActiveTab("attendance")} 
+          />
+          <NavItem 
+            icon={<FileText size={20} />} 
+            label="AI Notes" 
+            active={activeTab === "notes"} 
+            onClick={() => setActiveTab("notes")} 
+          />
+          <div className="pt-8 pb-4 px-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-[#8E9299]">System</p>
+          </div>
+          <NavItem 
+            icon={<Settings size={20} />} 
+            label="Settings" 
+            active={activeTab === "settings"} 
+            onClick={() => setActiveTab("settings")} 
+          />
+        </nav>
+
+        {/* Status Indicator */}
+        <div className="absolute bottom-8 left-8 right-8 p-4 rounded-xl bg-[#141414] border border-[#1A1A1A]">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-medium">System Online</span>
+          </div>
+          <div className="w-full bg-[#050505] h-1 rounded-full overflow-hidden">
+            <motion.div 
+              className="h-full bg-[#F27D26]" 
+              initial={{ width: "0%" }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="ml-64 p-8 min-h-screen">
+        <header className="flex justify-between items-center mb-10">
+          <div>
+            <h2 className="text-2xl font-light tracking-tight capitalize">{activeTab.replace("-", " ")}</h2>
+            <p className="text-xs text-[#8E9299] mt-1">Real-time monitoring and automation active.</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button className="p-1.5 rounded-full bg-[#141414] border border-[#1A1A1A] hover:bg-[#1A1A1A] transition-colors relative">
+              <Bell size={18} />
+              {alerts.length > 0 && (
+                <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-[#F27D26] rounded-full border border-[#050505]" />
+              )}
+            </button>
+            <div className="h-8 w-[1px] bg-[#141414]" />
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs font-medium">Admin</p>
+                <p className="text-[9px] text-[#8E9299] uppercase tracking-wider">Superuser</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F27D26] to-[#FF4444]" />
+            </div>
+          </div>
+        </header>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === "dashboard" && <Dashboard alerts={alerts} totalStudents={studentsPresent.length} />}
+            {activeTab === "live" && <LiveFeed addAlert={addAlert} studentsPresent={studentsPresent} setStudentsPresent={setStudentsPresent} />}
+            {activeTab === "attendance" && <AttendanceList />}
+            {activeTab === "notes" && <NotesGenerator />}
+            {activeTab === "settings" && (
+              <div className="p-12 border border-dashed border-[#141414] rounded-3xl flex flex-col items-center justify-center text-center">
+                <Settings className="w-12 h-12 text-[#141414] mb-4" />
+                <h3 className="text-xl font-medium">System Configuration</h3>
+                <p className="text-[#8E9299] max-w-md mt-2">Ghost Classroom AI is currently running in autonomous mode. Manual overrides are disabled for security.</p>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}
+
+function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+        active ? "bg-[#F27D26] text-black shadow-[0_4px_20px_rgba(242,125,38,0.2)]" : "text-[#8E9299] hover:bg-[#141414] hover:text-white"
+      )}
+    >
+      <span className={cn("transition-transform duration-200", active ? "scale-110" : "group-hover:scale-110")}>
+        {React.cloneElement(icon as React.ReactElement, { size: 18 })}
+      </span>
+      <span className="text-xs font-medium tracking-wide">{label}</span>
+    </button>
+  );
+}
