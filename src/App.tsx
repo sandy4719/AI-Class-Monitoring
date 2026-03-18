@@ -7,7 +7,9 @@ import {
   Settings, 
   Bell, 
   ShieldAlert,
-  Ghost
+  Ghost,
+  LogIn,
+  LogOut
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "./lib/utils";
@@ -15,30 +17,106 @@ import Dashboard from "./components/Dashboard";
 import LiveFeed from "./components/LiveFeed";
 import AttendanceList from "./components/AttendanceList";
 import NotesGenerator from "./components/NotesGenerator";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from "firebase/auth";
+import { collection, onSnapshot, query, orderBy, limit, Timestamp } from "firebase/firestore";
 
 type Tab = "dashboard" | "live" | "attendance" | "notes" | "settings";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
-  const [alerts, setAlerts] = useState<string[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
   const [studentsPresent, setStudentsPresent] = useState<string[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
-    const fetchAttendance = async () => {
-      try {
-        const res = await fetch("/api/attendance");
-        const data = await res.json();
-        setStudentsPresent(data.map((d: any) => d.name));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchAttendance();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setIsAuthReady(true);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const addAlert = (msg: string) => {
-    setAlerts(prev => [msg, ...prev].slice(0, 5));
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen for Attendance
+    const qAttendance = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
+    const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
+      const names = snapshot.docs.map(doc => doc.data().name);
+      // Unique names for headcount
+      setStudentsPresent([...new Set(names)]);
+    }, (error) => {
+      console.error("Firestore Error (Attendance):", error);
+    });
+
+    // Listen for Alerts
+    const qAlerts = query(collection(db, "alerts"), orderBy("timestamp", "desc"), limit(10));
+    const unsubAlerts = onSnapshot(qAlerts, (snapshot) => {
+      const alertData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setAlerts(alertData);
+    }, (error) => {
+      console.error("Firestore Error (Alerts):", error);
+    });
+
+    return () => {
+      unsubAttendance();
+      unsubAlerts();
+    };
+  }, [user]);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
   };
+
+  const handleLogout = () => signOut(auth);
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#F27D26] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-8">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-[#0A0A0A] border border-[#141414] rounded-3xl p-12 text-center"
+        >
+          <div className="w-16 h-16 bg-[#F27D26] rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(242,125,38,0.3)]">
+            <Ghost className="text-black w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">GHOST</h1>
+          <p className="text-[#8E9299] text-sm mb-8 uppercase tracking-[0.2em]">Classroom AI Sentinel</p>
+          
+          <button 
+            onClick={handleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-4 rounded-xl hover:bg-[#E4E3E0] transition-all"
+          >
+            <LogIn size={20} />
+            Sign in with Google
+          </button>
+          
+          <p className="mt-8 text-[10px] text-[#444] uppercase tracking-widest leading-relaxed">
+            Secure biometric monitoring system.<br />Authorized personnel only.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#E4E3E0] font-sans selection:bg-[#F27D26] selection:text-black">
@@ -88,6 +166,13 @@ export default function App() {
             active={activeTab === "settings"} 
             onClick={() => setActiveTab("settings")} 
           />
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500/70 hover:bg-red-500/10 hover:text-red-500 transition-all mt-4"
+          >
+            <LogOut size={18} />
+            <span className="text-xs font-medium tracking-wide">Logout</span>
+          </button>
         </nav>
 
         {/* Status Indicator */}
@@ -125,10 +210,14 @@ export default function App() {
             <div className="h-8 w-[1px] bg-[#141414]" />
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-xs font-medium">Admin</p>
+                <p className="text-xs font-medium">{user.displayName || "Admin"}</p>
                 <p className="text-[9px] text-[#8E9299] uppercase tracking-wider">Superuser</p>
               </div>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F27D26] to-[#FF4444]" />
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-[#1A1A1A]" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F27D26] to-[#FF4444]" />
+              )}
             </div>
           </div>
         </header>
@@ -141,8 +230,8 @@ export default function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === "dashboard" && <Dashboard alerts={alerts} totalStudents={studentsPresent.length} />}
-            {activeTab === "live" && <LiveFeed addAlert={addAlert} studentsPresent={studentsPresent} setStudentsPresent={setStudentsPresent} />}
+            {activeTab === "dashboard" && <Dashboard alerts={alerts.map(a => a.message)} totalStudents={studentsPresent.length} />}
+            {activeTab === "live" && <LiveFeed studentsPresent={studentsPresent} />}
             {activeTab === "attendance" && <AttendanceList />}
             {activeTab === "notes" && <NotesGenerator />}
             {activeTab === "settings" && (

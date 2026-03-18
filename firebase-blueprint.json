@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "attendance": {
+      "title": "Attendance",
+      "description": "Records of student presence in the classroom.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Student name or ID" },
+        "date": { "type": "string", "description": "Date of attendance (YYYY-MM-DD)" },
+        "time": { "type": "string", "description": "Time of attendance" },
+        "status": { "type": "string", "enum": ["Present", "Absent"], "description": "Attendance status" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["name", "date", "time", "status", "timestamp"]
+    },
+    "alerts": {
+      "title": "Alerts",
+      "description": "Real-time security and behavioral alerts.",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string", "description": "Alert message" },
+        "type": { "type": "string", "description": "Type of alert (e.g., 'exam_violation', 'low_attention')" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["message", "type", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/attendance/{attendanceId}": {
+      "schema": "attendance",
+      "description": "Collection of attendance records."
+    },
+    "/alerts/{alertId}": {
+      "schema": "alerts",
+      "description": "Collection of real-time alerts."
+    }
+  }
+}

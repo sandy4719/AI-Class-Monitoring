@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: attendance
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required) - Student name or ID
+    //   - date: string (required) - Date (YYYY-MM-DD)
+    //   - time: string (required) - Time
+    //   - status: string (required) - 'Present' or 'Absent'
+    //   - timestamp: timestamp (required) - Server timestamp
+    //
+    // Collection: alerts
+    // Document ID: auto-generated
+    // Fields:
+    //   - message: string (required) - Alert message
+    //   - type: string (required) - Alert type
+    //   - timestamp: timestamp (required) - Server timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "santhoshkumarbn07@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['name', 'date', 'time', 'status', 'timestamp']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.time is string &&
+             data.status in ['Present', 'Absent'] &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidAlert(data) {
+      return data.keys().hasAll(['message', 'type', 'timestamp']) &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 500 &&
+             data.type is string && data.type.size() > 0 && data.type.size() < 100 &&
+             data.timestamp is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidAttendance(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidAlert(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && (request.auth.uid == userId) && request.resource.data.role == 'user';
+      allow update: if isAdmin();
+    }
+  }
+}

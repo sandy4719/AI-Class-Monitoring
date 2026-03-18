@@ -10,6 +10,8 @@ import {
   Calendar
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { db } from "../firebase";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 
 interface Attendance {
   name: string;
@@ -23,18 +25,17 @@ export default function AttendanceList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAttendance = async () => {
-      try {
-        const res = await fetch("/api/attendance");
-        const data = await res.json();
-        setAttendance(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAttendance();
+    const q = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => doc.data() as Attendance);
+      setAttendance(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Error (AttendanceList):", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   return (

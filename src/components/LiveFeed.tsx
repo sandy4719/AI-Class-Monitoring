@@ -13,17 +13,15 @@ import {
   ChevronLeft
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { db } from "../firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
 export default function LiveFeed({ 
-  addAlert, 
-  studentsPresent, 
-  setStudentsPresent 
+  studentsPresent 
 }: { 
-  addAlert: (msg: string) => void,
-  studentsPresent: string[],
-  setStudentsPresent: (students: string[]) => void
+  studentsPresent: string[]
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -185,7 +183,7 @@ export default function LiveFeed({
         // Exam Mode Logic
         if (isExamMode) {
           if (detections.length > 1) {
-            addAlert("Multiple faces detected in Exam Mode!");
+            recordAlert("Multiple faces detected in Exam Mode!", "exam_violation");
           }
           detections.forEach(d => {
             const landmarks = d.landmarks;
@@ -194,7 +192,7 @@ export default function LiveFeed({
             const rightEye = landmarks.getRightEye()[0];
             const horizontalDiff = Math.abs(nose.x - (leftEye.x + rightEye.x) / 2);
             if (horizontalDiff > 15) {
-              addAlert("Suspicious movement detected!");
+              recordAlert("Suspicious movement detected!", "suspicious_behavior");
             }
           });
         }
@@ -208,11 +206,9 @@ export default function LiveFeed({
           for (let i = currentCount + 1; i <= newCount; i++) {
             const mockName = `Student_${i}`;
             if (!studentsPresentRef.current.includes(mockName)) {
-              studentsPresentRef.current.push(mockName);
               markAttendance(mockName);
             }
           }
-          setStudentsPresent([...studentsPresentRef.current]);
         }
       } catch (err) {
         console.error("Detection error:", err);
@@ -222,18 +218,31 @@ export default function LiveFeed({
     return () => clearInterval(interval);
   }, [isLoaded, isExamMode]);
 
+  const recordAlert = async (message: string, type: string) => {
+    try {
+      await addDoc(collection(db, "alerts"), {
+        message,
+        type,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Failed to record alert:", err);
+    }
+  };
+
   const markAttendance = async (name: string) => {
     const now = new Date();
-    await fetch("/api/attendance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await addDoc(collection(db, "attendance"), {
         name,
         date: now.toLocaleDateString(),
         time: now.toLocaleTimeString(),
-        status: "Present"
-      })
-    });
+        status: "Present",
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Failed to mark attendance:", err);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
