@@ -9,7 +9,8 @@ import {
   ShieldAlert,
   Ghost,
   LogIn,
-  LogOut
+  LogOut,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "./lib/utils";
@@ -19,7 +20,8 @@ import AttendanceList from "./components/AttendanceList";
 import NotesGenerator from "./components/NotesGenerator";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from "firebase/auth";
-import { collection, onSnapshot, query, orderBy, limit, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "./lib/firestore-utils";
 
 type Tab = "dashboard" | "live" | "attendance" | "notes" | "settings";
 
@@ -29,6 +31,8 @@ export default function App() {
   const [studentsPresent, setStudentsPresent] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -42,17 +46,19 @@ export default function App() {
     if (!user) return;
 
     // Listen for Attendance
-    const qAttendance = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
+    const pathAttendance = "attendance";
+    const qAttendance = query(collection(db, pathAttendance), orderBy("timestamp", "desc"));
     const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
       const names = snapshot.docs.map(doc => doc.data().name);
       // Unique names for headcount
       setStudentsPresent([...new Set(names)]);
     }, (error) => {
-      console.error("Firestore Error (Attendance):", error);
+      handleFirestoreError(error, OperationType.GET, pathAttendance);
     });
 
     // Listen for Alerts
-    const qAlerts = query(collection(db, "alerts"), orderBy("timestamp", "desc"), limit(10));
+    const pathAlerts = "alerts";
+    const qAlerts = query(collection(db, pathAlerts), orderBy("timestamp", "desc"), limit(10));
     const unsubAlerts = onSnapshot(qAlerts, (snapshot) => {
       const alertData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -60,7 +66,7 @@ export default function App() {
       }));
       setAlerts(alertData);
     }, (error) => {
-      console.error("Firestore Error (Alerts):", error);
+      handleFirestoreError(error, OperationType.GET, pathAlerts);
     });
 
     return () => {
@@ -70,11 +76,22 @@ export default function App() {
   }, [user]);
 
   const handleLogin = async () => {
+    setLoginLoading(true);
+    setLoginError(null);
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
+      if (error.code === "auth/popup-blocked") {
+        setLoginError("Popup blocked! Please allow popups for this site.");
+      } else if (error.code === "auth/unauthorized-domain") {
+        setLoginError("This domain is not authorized in Firebase Console.");
+      } else {
+        setLoginError("Sign-in failed. Please try again.");
+      }
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -104,11 +121,26 @@ export default function App() {
           
           <button 
             onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-4 rounded-xl hover:bg-[#E4E3E0] transition-all"
+            disabled={loginLoading}
+            className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-4 rounded-xl hover:bg-[#E4E3E0] transition-all disabled:opacity-50"
           >
-            <LogIn size={20} />
-            Sign in with Google
+            {loginLoading ? (
+              <RefreshCw size={20} className="animate-spin" />
+            ) : (
+              <LogIn size={20} />
+            )}
+            {loginLoading ? "Connecting..." : "Sign in with Google"}
           </button>
+
+          {loginError && (
+            <motion.div 
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-widest"
+            >
+              {loginError}
+            </motion.div>
+          )}
           
           <p className="mt-8 text-[10px] text-[#444] uppercase tracking-widest leading-relaxed">
             Secure biometric monitoring system.<br />Authorized personnel only.
@@ -258,7 +290,7 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, labe
       )}
     >
       <span className={cn("transition-transform duration-200", active ? "scale-110" : "group-hover:scale-110")}>
-        {React.cloneElement(icon as React.ReactElement, { size: 18 })}
+        {React.cloneElement(icon as React.ReactElement, { size: 18 } as any)}
       </span>
       <span className="text-xs font-medium tracking-wide">{label}</span>
     </button>

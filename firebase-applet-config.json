@@ -1,10 +1,10 @@
 {
-  "projectId": "gen-lang-client-0084013148",
-  "appId": "1:660730488788:web:291c38fc9b0d2952abd841",
-  "apiKey": "AIzaSyD-wwfNxcbpS4gxgnpe1l1Ibn5aiDDL2NU",
-  "authDomain": "gen-lang-client-0084013148.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-1799639a-2215-43ed-98cf-6109420c4afd",
-  "storageBucket": "gen-lang-client-0084013148.firebasestorage.app",
-  "messagingSenderId": "660730488788",
-  "measurementId": ""
+  "projectId": "ghost-classroom-ai",
+  "appId": "1:213911476079:web:bd42b5c53823b007fd3a9a",
+  "apiKey": "AIzaSyBKUvYRdNKwM75tyw9gulUusDO4a4VjB7g",
+  "authDomain": "ghost-classroom-ai.firebaseapp.com",
+  "storageBucket": "ghost-classroom-ai.firebasestorage.app",
+  "messagingSenderId": "213911476079",
+  "measurementId": "G-JLKYE8KWRP",
+  "firestoreDatabaseId": "(default)"
 }

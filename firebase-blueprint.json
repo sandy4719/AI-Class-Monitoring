@@ -1,38 +1,52 @@
 {
   "entities": {
-    "attendance": {
-      "title": "Attendance",
-      "description": "Records of student presence in the classroom.",
+    "Student": {
+      "title": "Student",
+      "description": "Represents a student in the classroom.",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "description": "Student name or ID" },
-        "date": { "type": "string", "description": "Date of attendance (YYYY-MM-DD)" },
-        "time": { "type": "string", "description": "Time of attendance" },
-        "status": { "type": "string", "enum": ["Present", "Absent"], "description": "Attendance status" },
-        "timestamp": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+        "id": { "type": "string", "description": "Unique identifier for the student." },
+        "name": { "type": "string", "description": "Full name of the student." },
+        "photoUrl": { "type": "string", "description": "URL to the student's profile photo." },
+        "status": { "type": "string", "enum": ["present", "absent"], "description": "Current attendance status." }
       },
-      "required": ["name", "date", "time", "status", "timestamp"]
+      "required": ["id", "name", "status"]
     },
-    "alerts": {
-      "title": "Alerts",
-      "description": "Real-time security and behavioral alerts.",
+    "AttendanceRecord": {
+      "title": "Attendance Record",
+      "description": "Represents a single attendance event.",
       "type": "object",
       "properties": {
-        "message": { "type": "string", "description": "Alert message" },
-        "type": { "type": "string", "description": "Type of alert (e.g., 'exam_violation', 'low_attention')" },
-        "timestamp": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+        "studentId": { "type": "string", "description": "ID of the student." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Time the student was detected." },
+        "confidence": { "type": "number", "description": "AI confidence score." }
       },
-      "required": ["message", "type", "timestamp"]
+      "required": ["studentId", "timestamp"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Represents a security or behavioral alert.",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string", "description": "The alert message." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Time the alert was triggered." },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"], "description": "Alert severity level." }
+      },
+      "required": ["message", "timestamp", "severity"]
     }
   },
   "firestore": {
-    "/attendance/{attendanceId}": {
-      "schema": "attendance",
-      "description": "Collection of attendance records."
+    "/students": {
+      "schema": "Student",
+      "description": "Collection of students."
     },
-    "/alerts/{alertId}": {
-      "schema": "alerts",
-      "description": "Collection of real-time alerts."
+    "/attendance": {
+      "schema": "AttendanceRecord",
+      "description": "History of attendance detections."
+    },
+    "/alerts": {
+      "schema": "Alert",
+      "description": "Security and system alerts."
     }
   }
 }

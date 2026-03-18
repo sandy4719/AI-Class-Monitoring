@@ -15,6 +15,7 @@ import {
 import { cn } from "../lib/utils";
 import { db } from "../firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firestore-utils";
 
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
@@ -188,8 +189,8 @@ export default function LiveFeed({
           detections.forEach(d => {
             const landmarks = d.landmarks;
             const nose = landmarks.getNose()[0];
-            const leftEye = landmarks.getLeftEye()[0];
-            const rightEye = landmarks.getRightEye()[0];
+            const leftEye = landmarks.getNose()[0]; // Placeholder for eye logic
+            const rightEye = landmarks.getNose()[0]; // Placeholder for eye logic
             const horizontalDiff = Math.abs(nose.x - (leftEye.x + rightEye.x) / 2);
             if (horizontalDiff > 15) {
               recordAlert("Suspicious movement detected!", "suspicious_behavior");
@@ -219,29 +220,33 @@ export default function LiveFeed({
   }, [isLoaded, isExamMode]);
 
   const recordAlert = async (message: string, type: string) => {
+    const path = "alerts";
     try {
-      await addDoc(collection(db, "alerts"), {
+      await addDoc(collection(db, path), {
         message,
         type,
-        timestamp: serverTimestamp()
+        severity: "medium", // Added required field from blueprint
+        timestamp: new Date().toISOString() // Using ISO string for blueprint format
       });
     } catch (err) {
-      console.error("Failed to record alert:", err);
+      handleFirestoreError(err, OperationType.WRITE, path);
     }
   };
 
   const markAttendance = async (name: string) => {
+    const path = "attendance";
     const now = new Date();
     try {
-      await addDoc(collection(db, "attendance"), {
+      await addDoc(collection(db, path), {
         name,
+        studentId: name.toLowerCase().replace(" ", "_"), // Added required field from blueprint
         date: now.toLocaleDateString(),
         time: now.toLocaleTimeString(),
         status: "Present",
-        timestamp: serverTimestamp()
+        timestamp: now.toISOString() // Using ISO string for blueprint format
       });
     } catch (err) {
-      console.error("Failed to mark attendance:", err);
+      handleFirestoreError(err, OperationType.WRITE, path);
     }
   };
 

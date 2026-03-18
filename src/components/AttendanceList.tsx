@@ -12,6 +12,7 @@ import {
 import { cn } from "../lib/utils";
 import { db } from "../firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firestore-utils";
 
 interface Attendance {
   name: string;
@@ -25,13 +26,14 @@ export default function AttendanceList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
+    const path = "attendance";
+    const q = query(collection(db, path), orderBy("timestamp", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => doc.data() as Attendance);
       setAttendance(data);
       setLoading(false);
     }, (error) => {
-      console.error("Firestore Error (AttendanceList):", error);
+      handleFirestoreError(error, OperationType.GET, path);
       setLoading(false);
     });
 
