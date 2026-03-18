@@ -43,8 +43,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-
     // Listen for Attendance
     const pathAttendance = "attendance";
     const qAttendance = query(collection(db, pathAttendance), orderBy("timestamp", "desc"));
@@ -73,79 +71,34 @@ export default function App() {
       unsubAttendance();
       unsubAlerts();
     };
-  }, [user]);
+  }, []);
 
-  const handleLogin = async () => {
-    setLoginLoading(true);
-    setLoginError(null);
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      console.error("Login failed:", error);
-      if (error.code === "auth/popup-blocked") {
-        setLoginError("Popup blocked! Please allow popups for this site.");
-      } else if (error.code === "auth/unauthorized-domain") {
-        setLoginError("This domain is not authorized in Firebase Console.");
-      } else {
-        setLoginError("Sign-in failed. Please try again.");
-      }
-    } finally {
-      setLoginLoading(false);
-    }
-  };
+  // const handleLogin = async () => {
+  //   setLoginLoading(true);
+  //   setLoginError(null);
+  //   const provider = new GoogleAuthProvider();
+  //   try {
+  //     await signInWithPopup(auth, provider);
+  //   } catch (error: any) {
+  //     console.error("Login failed:", error);
+  //     if (error.code === "auth/popup-blocked") {
+  //       setLoginError("Popup blocked! Please allow popups for this site.");
+  //     } else if (error.code === "auth/unauthorized-domain") {
+  //       setLoginError(`Domain not authorized: ${window.location.hostname}. Please add it to Firebase Console > Auth > Settings > Authorized domains. Also ensure Google Sign-In is enabled.`);
+  //     } else {
+  //       setLoginError("Sign-in failed. Please try again.");
+  //     }
+  //   } finally {
+  //     setLoginLoading(false);
+  //   }
+  // };
 
-  const handleLogout = () => signOut(auth);
+  // const handleLogout = () => signOut(auth);
 
   if (!isAuthReady) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[#F27D26] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-8">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full bg-[#0A0A0A] border border-[#141414] rounded-3xl p-12 text-center"
-        >
-          <div className="w-16 h-16 bg-[#F27D26] rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(242,125,38,0.3)]">
-            <Ghost className="text-black w-10 h-10" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">GHOST</h1>
-          <p className="text-[#8E9299] text-sm mb-8 uppercase tracking-[0.2em]">Classroom AI Sentinel</p>
-          
-          <button 
-            onClick={handleLogin}
-            disabled={loginLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-4 rounded-xl hover:bg-[#E4E3E0] transition-all disabled:opacity-50"
-          >
-            {loginLoading ? (
-              <RefreshCw size={20} className="animate-spin" />
-            ) : (
-              <LogIn size={20} />
-            )}
-            {loginLoading ? "Connecting..." : "Sign in with Google"}
-          </button>
-
-          {loginError && (
-            <motion.div 
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-widest"
-            >
-              {loginError}
-            </motion.div>
-          )}
-          
-          <p className="mt-8 text-[10px] text-[#444] uppercase tracking-widest leading-relaxed">
-            Secure biometric monitoring system.<br />Authorized personnel only.
-          </p>
-        </motion.div>
       </div>
     );
   }
@@ -198,13 +151,6 @@ export default function App() {
             active={activeTab === "settings"} 
             onClick={() => setActiveTab("settings")} 
           />
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500/70 hover:bg-red-500/10 hover:text-red-500 transition-all mt-4"
-          >
-            <LogOut size={18} />
-            <span className="text-xs font-medium tracking-wide">Logout</span>
-          </button>
         </nav>
 
         {/* Status Indicator */}
@@ -242,14 +188,10 @@ export default function App() {
             <div className="h-8 w-[1px] bg-[#141414]" />
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-xs font-medium">{user.displayName || "Admin"}</p>
-                <p className="text-[9px] text-[#8E9299] uppercase tracking-wider">Superuser</p>
+                <p className="text-xs font-medium">Guest Admin</p>
+                <p className="text-[9px] text-[#8E9299] uppercase tracking-wider">Public Access</p>
               </div>
-              {user.photoURL ? (
-                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-[#1A1A1A]" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F27D26] to-[#FF4444]" />
-              )}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F27D26] to-[#FF4444]" />
             </div>
           </div>
         </header>
